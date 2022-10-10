@@ -1,349 +1,158 @@
 package com.shuzijun.leetcode.plugin.manager;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Maps;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.wm.ToolWindowManager;
-import com.intellij.ui.components.JBScrollPane;
-import com.shuzijun.leetcode.plugin.model.Constant;
-import com.shuzijun.leetcode.plugin.model.Question;
-import com.shuzijun.leetcode.plugin.model.Sort;
-import com.shuzijun.leetcode.plugin.model.Tag;
+import com.shuzijun.leetcode.plugin.model.*;
 import com.shuzijun.leetcode.plugin.utils.MessageUtils;
 import com.shuzijun.leetcode.plugin.utils.PropertiesUtils;
-import com.shuzijun.leetcode.plugin.window.WindowFactory;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 
-import javax.swing.*;
-import javax.swing.tree.DefaultMutableTreeNode;
-import javax.swing.tree.DefaultTreeModel;
-import javax.swing.tree.TreePath;
-import java.awt.*;
-import java.util.List;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @author shuzijun
  */
 public class ViewManager {
 
-    private static Map<String, Question> question = Maps.newLinkedHashMap();
-
-    private static Map<String, List<Tag>> filter = Maps.newLinkedHashMap();
-
-    private static Map<String, Sort> sortMap = Maps.newLinkedHashMap();
-
-    static {
-        sortMap.put(Constant.SORT_TYPE_ID, new Sort(Constant.SORT_TYPE_ID, 1));
-        sortMap.put(Constant.SORT_TYPE_TITLE, new Sort(Constant.SORT_TYPE_TITLE));
-        sortMap.put(Constant.SORT_TYPE_SOLUTION, new Sort(Constant.SORT_TYPE_SOLUTION));
-        sortMap.put(Constant.SORT_TYPE_ACCEPTANCE, new Sort(Constant.SORT_TYPE_ACCEPTANCE));
-        sortMap.put(Constant.SORT_TYPE_DIFFICULTY, new Sort(Constant.SORT_TYPE_DIFFICULTY));
-        sortMap.put(Constant.SORT_TYPE_FREQUENCY, new Sort(Constant.SORT_TYPE_FREQUENCY));
+    public static void loadServiceData(NavigatorAction navigatorAction, Project project) {
+        loadServiceData(navigatorAction, project, null);
     }
 
-    private static boolean intersection = Boolean.FALSE;
+    public static void loadServiceData(NavigatorAction navigatorAction, Project project, String selectTitleSlug) {
+        QuestionManager.getQuestionAllService(project, false);
+        PageInfo pageInfo = QuestionManager.getQuestionViewList(project, navigatorAction.getPageInfo());
+        if ((pageInfo.getRows() == null || pageInfo.getRows().isEmpty()) && pageInfo.getRowTotal() != 0) {
+            MessageUtils.getInstance(project).showErrorMsg("error", PropertiesUtils.getInfo("response.question"));
+            return;
+        }
 
-    public static void loadServiceData(JTree tree, Project project) {
-        loadServiceData(tree, project, "");
+        if (navigatorAction.getFind().getFilter().isEmpty()) {
+            ApplicationManager.getApplication().executeOnPooledThread(() -> {
+                navigatorAction.getFind().addFilter(Constant.FIND_TYPE_CATEGORY, FindManager.getCategory());
+                navigatorAction.getFind().addFilter(Constant.FIND_TYPE_DIFFICULTY, FindManager.getDifficulty());
+                navigatorAction.getFind().addFilter(Constant.FIND_TYPE_STATUS, FindManager.getStatus());
+                navigatorAction.getFind().addFilter(Constant.FIND_TYPE_TAGS, FindManager.getTags());
+                navigatorAction.getFind().addFilter(Constant.FIND_TYPE_LISTS, FindManager.getLists(project));
+            });
+        }
+
+        navigatorAction.loadData(selectTitleSlug);
     }
 
-    public static void loadServiceData(JTree tree, Project project, String categorySlug) {
-        List<Question> questionList = QuestionManager.getQuestionService(project, categorySlug);
-        if (questionList == null || questionList.isEmpty()) {
-            MessageUtils.getInstance(project).showWarnMsg("warning", PropertiesUtils.getInfo("response.cache"));
-            questionList = QuestionManager.getQuestionCache();
-            if (questionList == null || questionList.isEmpty()) {
-                MessageUtils.getInstance(project).showErrorMsg("error", PropertiesUtils.getInfo("response.question"));
-                return;
-            }
+    public static void pick(Project project, PageInfo pageInfo) {
+        Question question = QuestionManager.pick(project, pageInfo);
+        if (question != null) {
+            CodeManager.openCode(question.getTitleSlug(), project);
+        }
+    }
+
+    public static void loadAllServiceData(NavigatorAction navigatorAction, Project project) {
+        loadAllServiceData(navigatorAction, project, null, false);
+    }
+
+    public static void loadAllServiceData(NavigatorAction navigatorAction, Project project, String selectTitleSlug, boolean reset) {
+        List<QuestionView> questionViews = QuestionManager.getQuestionAllService(project, reset);
+        if (CollectionUtils.isEmpty(questionViews)) {
+            MessageUtils.getInstance(project).showErrorMsg("error", PropertiesUtils.getInfo("response.question"));
+            return;
         }
 
-        question = Maps.uniqueIndex(questionList.iterator(), new Function<Question, String>() {
-            @Override
-            public String apply(Question question) {
-                return question.getFrontendQuestionId();
-            }
-        });
-
-        filter.put(Constant.FIND_TYPE_DIFFICULTY, QuestionManager.getDifficulty());
-        //filter.put(Constant.FIND_TYPE_STATUS, QuestionManager.getStatus());
-        // filter.put(Constant.FIND_TYPE_LISTS, QuestionManager.getLists());
-       // filter.put(Constant.FIND_TYPE_TAGS, QuestionManager.getTags());  Temporarily disabled
-        filter.put(Constant.FIND_TYPE_CATEGORY, QuestionManager.getCategory(categorySlug));
-
-
-        DefaultTreeModel treeMode = (DefaultTreeModel) tree.getModel();
-        DefaultMutableTreeNode root = (DefaultMutableTreeNode) treeMode.getRoot();
-        root.removeAllChildren();
-        Question problems = new Question(String.format("Problems(%d)", questionList.size()));
-        problems.setNodeType(Constant.NODETYPE_PROBLEMS);
-        DefaultMutableTreeNode node = new DefaultMutableTreeNode(problems);
-        root.add(node);
-        for (Question q : questionList) {
-            node.add(new DefaultMutableTreeNode(q));
+        if (navigatorAction.getFind().getFilter().isEmpty()) {
+            navigatorAction.getFind().addFilter(Constant.FIND_TYPE_CATEGORY, FindManager.getCategory());
+            navigatorAction.getFind().addFilter(Constant.FIND_TYPE_DIFFICULTY, FindManager.getDifficulty());
+            navigatorAction.getFind().addFilter(Constant.FIND_TYPE_STATUS, FindManager.getStatus());
+            navigatorAction.getFind().addFilter(Constant.FIND_TYPE_TAGS, FindManager.getTags());
+            navigatorAction.getFind().addFilter(Constant.FIND_TYPE_LISTS, FindManager.getLists(project));
         }
-        for (String key : filter.keySet()) {
-            if (Constant.FIND_TYPE_CATEGORY.equals(key)) {
+
+        Set<String> conformSet = questionViews.stream().map(QuestionView::getQuestionId).collect(Collectors.toSet());
+        PageInfo<QuestionView> pageInfo = navigatorAction.getPageInfo();
+        PageInfo.Filters filters = pageInfo.getFilters();
+        if (StringUtils.isNotBlank(filters.getListId())) {
+            List<Tag> tagList = navigatorAction.getFind().getFilter(Constant.FIND_TYPE_LISTS);
+            Tag tag = tagList.stream().filter(t -> t.getSlug().equalsIgnoreCase(filters.getListId())).findAny().get();
+            conformSet.retainAll(tag.getQuestions());
+        }
+        if (CollectionUtils.isNotEmpty(filters.getTags())) {
+            List<Tag> tagList = navigatorAction.getFind().getFilter(Constant.FIND_TYPE_TAGS);
+            Set<String> tagQuestions = new HashSet<>();
+            Set<String> tagSlugs = filters.getTags().stream().collect(Collectors.toSet());
+            for (Tag tag : tagList) {
+                if (tagSlugs.contains(tag.getSlug())) {
+                    tagQuestions.addAll(tag.getQuestions());
+                }
+            }
+            conformSet.retainAll(tagQuestions);
+        }
+
+        boolean category = StringUtils.isNotBlank(pageInfo.getCategorySlug());
+        boolean searchKeywords = StringUtils.isNotBlank(filters.getSearchKeywords());
+        boolean difficulty = StringUtils.isNotBlank(filters.getDifficulty());
+        boolean status = StringUtils.isNotBlank(filters.getStatus());
+
+        List<QuestionView> conformList = new ArrayList<>();
+        QuestionView dayQuestion = QuestionManager.questionOfToday();
+        if (dayQuestion != null) {
+            conformList.add(dayQuestion);
+        }
+        for (QuestionView questionView : questionViews) {
+            if (!conformSet.contains(questionView.getQuestionId())) {
                 continue;
             }
-            DefaultMutableTreeNode filterNode = new DefaultMutableTreeNode(new Question(key));
-            root.add(filterNode);
-            addChild(filterNode, filter.get(key), question);
-        }
-
-        DefaultMutableTreeNode explore = new DefaultMutableTreeNode(new Question("Explore", Constant.NODETYPE_EXPLORE));
-        explore.add(new DefaultMutableTreeNode(new Question(Constant.NODETYPE_LOAD, Constant.NODETYPE_LOAD)));
-        root.add(explore);
-
-        tree.updateUI();
-        treeMode.reload();
-    }
-
-    public static List<Tag> getFilter(String key) {
-        return filter.get(key);
-    }
-
-    public static boolean clearFilter() {
-        boolean isLoad = false;
-        for (String key : filter.keySet()) {
-            List<Tag> tagList = filter.get(key);
-            for (Tag tag : tagList) {
-                if (tag.isSelect() && Constant.FIND_TYPE_CATEGORY.equals(key)) {
-                    isLoad = true;
-                }
-                tag.setSelect(Boolean.FALSE);
-            }
-        }
-        return isLoad;
-    }
-
-    public static void updateStatus() {
-        filter.put(Constant.FIND_TYPE_STATUS, QuestionManager.getStatus());
-    }
-
-    public static boolean isIntersection() {
-        return intersection;
-    }
-
-    public static void setIntersection(boolean intersection) {
-        ViewManager.intersection = intersection;
-    }
-
-    public static void update(JTree tree) {
-        TreeSet<String> selectQuestionList = null;
-        for (String key : filter.keySet()) {
-            if (Constant.FIND_TYPE_CATEGORY.equals(key)) {
+            if (category && !questionView.getCategory().equalsIgnoreCase(pageInfo.getCategorySlug())) {
                 continue;
             }
-            List<Tag> tagList = filter.get(key);
-            TreeSet<String> tagQuestionList = null;
-            for (Tag tag : tagList) {
-                if (tag.isSelect()) {
-                    TreeSet<String> temp = tag.getFrontendQuestionId();
-                    if (tagQuestionList == null) {
-                        tagQuestionList = new TreeSet(new Comparator<String>() {
-                            @Override
-                            public int compare(String arg0, String arg1) {
-                                if (StringUtils.isNumeric(arg0) && StringUtils.isNumeric(arg1)) {
-                                    return Integer.valueOf(arg0).compareTo(Integer.valueOf(arg1));
-                                } else if (StringUtils.isNumeric(arg0)) {
-                                    return  -1;
-                                } else if (StringUtils.isNumeric(arg1)) {
-                                    return 1;
-                                } else {
-                                    return arg0.compareTo(arg1);
-                                }
-                            }
-                        });
-                        tagQuestionList.addAll(temp);
-                    } else {
-                        if (intersection) {
-                            tagQuestionList.retainAll(temp);
-                        } else {
-                            tagQuestionList.addAll(temp);
-                        }
-                    }
+            if (searchKeywords && !(questionView.getFrontendQuestionId().startsWith(filters.getSearchKeywords())
+                    || questionView.getTitle().contains(filters.getSearchKeywords()) || questionView.getTitleSlug().contains(filters.getSearchKeywords()))) {
+                continue;
+            }
+            if (difficulty) {
+                List<String> difficultyList = FindManager.getDifficulty().stream().map(t -> t.getSlug()).collect(Collectors.toList());
+                Integer level = difficultyList.indexOf(filters.getDifficulty()) + 1;
+                if (!questionView.getLevel().equals(level)) {
+                    continue;
                 }
             }
-
-            if (tagQuestionList != null) {
-                if (selectQuestionList == null) {
-                    selectQuestionList = new TreeSet(new Comparator<String>() {
-                        @Override
-                        public int compare(String arg0, String arg1) {
-                            return Integer.valueOf(arg0).compareTo(Integer.valueOf(arg1));
-                        }
-                    });
-                    selectQuestionList.addAll(tagQuestionList);
-                } else {
-                    selectQuestionList.retainAll(tagQuestionList);
+            if (status) {
+                if ("TRIED".equalsIgnoreCase(filters.getStatus()) && !questionView.getStatusSign().equalsIgnoreCase("?")) {
+                    continue;
+                } else if ("AC".equalsIgnoreCase(filters.getStatus()) && !questionView.getStatusSign().equalsIgnoreCase("✔")) {
+                    continue;
+                } else if ("NOT_STARTED".equalsIgnoreCase(filters.getStatus()) && !(questionView.getStatusSign().equalsIgnoreCase("$") || StringUtils.isBlank(questionView.getStatusSign()))) {
+                    continue;
                 }
             }
+            conformList.add(questionView);
         }
 
-        DefaultTreeModel treeMode = (DefaultTreeModel) tree.getModel();
-        DefaultMutableTreeNode root = (DefaultMutableTreeNode) treeMode.getRoot();
-        if (root.isLeaf()) {
-            return;
-        }
-        DefaultMutableTreeNode node = (DefaultMutableTreeNode) root.getChildAt(0);
-        node.removeAllChildren();
-        Sort sort = null;
-        for (Sort value : sortMap.values()) {
-            if(Constant.SORT_NONE != value.getType()){
-                sort = value;
-                break;
-            }
-        }
-        List<Question> all = new ArrayList<>();
-        if (selectQuestionList == null) {
-             all = new ArrayList<>(question.values());
-
-        } else {
-            for (String key : selectQuestionList) {
-                Question q = question.get(key);
-                if (q != null) {
-                    all.add(q);
-                }
-            }
-        }
-        QuestionManager.sortQuestionList(all,sort);
-        for (Question q : all) {
-            node.add(new DefaultMutableTreeNode(q));
-        }
-        ((Question) node.getUserObject()).setTitle(String.format("Problems(%d)", node.getChildCount()));
-        treeMode.reload();
-        tree.expandPath(new TreePath(node.getPath()));
-
-
-    }
-
-    public static void pick(JTree tree, JBScrollPane scrollPane) {
-
-        DefaultTreeModel treeMode = (DefaultTreeModel) tree.getModel();
-        DefaultMutableTreeNode root = (DefaultMutableTreeNode) treeMode.getRoot();
-        if (root.isLeaf()) {
-            return;
-        }
-        DefaultMutableTreeNode node = (DefaultMutableTreeNode) root.getChildAt(0);
-        if (node.isLeaf()) {
-            return;
-        }
-        int i = (int) (Math.random() * node.getChildCount());
-        DefaultMutableTreeNode select = (DefaultMutableTreeNode) node.getChildAt(i);
-
-        TreePath toShowPath = new TreePath(select.getPath());
-        tree.setSelectionPath(toShowPath);
-        Rectangle bounds = tree.getPathBounds(toShowPath);
-        Point point = new Point(0, (int) bounds.getY());
-        JViewport viewport = scrollPane.getViewport();
-        viewport.setViewPosition(point);
-        return;
-    }
-
-    public static Question getTreeQuestion(JTree tree, Project project) {
-        Question question = null;
-        if (tree != null) {
-            DefaultMutableTreeNode note = (DefaultMutableTreeNode) tree.getLastSelectedPathComponent();
-            if (note != null) {
-                question = (Question) note.getUserObject();
-                if (question != null) {
-                    if ("lock".equals(question.getStatus())) {
-                        question = null;
-                    }
-                    if (!question.isLeaf()) {
-                        question = null;
-                    }
-                }
-            }
-        }
-        if (question == null) {
-            MessageUtils.getInstance(project).showInfoMsg("info", PropertiesUtils.getInfo("tree.select"));
-        }
-        return question;
-    }
-
-    public static Question getQuestionById(String id, Project project) {
-        if (question.isEmpty()) {
-            MessageUtils.getInstance(project).showInfoMsg("info", PropertiesUtils.getInfo("tree.load"));
-            ApplicationManager.getApplication().invokeAndWait(new Runnable() {
+        if (StringUtils.isNotBlank(filters.getOrderBy())) {
+            int order = "DESCENDING".equalsIgnoreCase(filters.getSortOrder()) ? -1 : 1;
+            Collections.sort(conformList, new Comparator<QuestionView>() {
                 @Override
-                public void run() {
-                    ToolWindowManager.getInstance(project).getToolWindow(WindowFactory.ID).show(null);
+                public int compare(QuestionView o1, QuestionView o2) {
+                    if ("day".equalsIgnoreCase(o1.getStatus())) {
+                        return 1;
+                    } else if ("day".equalsIgnoreCase(o2.getStatus())) {
+                        return -1;
+                    }
+                    if ("TITLE".equalsIgnoreCase(filters.getOrderBy())) {
+                        return order * o1.getTitle().compareTo(o2.getTitle());
+                    }
+                    if ("DIFFICULTY".equalsIgnoreCase(filters.getOrderBy())) {
+                        return order * o1.getLevel().compareTo(o2.getLevel());
+                    }
+                    if ("STATES".equalsIgnoreCase(filters.getOrderBy())) {
+                        return order * o1.getStatusSign().compareTo(o2.getStatusSign());
+                    }
+                    return order * o1.getFrontendQuestionId().compareTo(o2.getFrontendQuestionId());
                 }
             });
-            return null;
-        }
-        return question.get(id);
-    }
-    public static Question getDumbQuestionById(String id, Project project) {
-        if (question.isEmpty()) {
-            return null;
-        }
-        return question.get(id);
-    }
-
-    private static void addChild(DefaultMutableTreeNode rootNode, List<Tag> Lists, Map<String, Question> questionMap) {
-        if (!Lists.isEmpty()) {
-            for (Tag tag : Lists) {
-                long qCnt = tag.getFrontendQuestionId().stream().filter(q -> questionMap.get(q) != null).count();
-                DefaultMutableTreeNode tagNode = new DefaultMutableTreeNode(new Question(String.format("%s(%d)",
-                        tag.getName(), qCnt)));
-                rootNode.add(tagNode);
-                for (String key : tag.getFrontendQuestionId()) {
-                    if (questionMap.get(key) != null) {
-                        tagNode.add(new DefaultMutableTreeNode(questionMap.get(key)));
-                    }
-
-                }
-            }
-
-        }
-    }
-
-    public static void position(JTree tree, JBScrollPane scrollPane, Question question) {
-
-        DefaultTreeModel treeMode = (DefaultTreeModel) tree.getModel();
-        DefaultMutableTreeNode root = (DefaultMutableTreeNode) treeMode.getRoot();
-        if (root.isLeaf()) {
-            return;
-        }
-        DefaultMutableTreeNode node = (DefaultMutableTreeNode) root.getChildAt(0);
-        if (node.isLeaf()) {
-            return;
         }
 
-        for (int i = 0, j = node.getChildCount(); i < j; i++) {
-            DefaultMutableTreeNode childNode = (DefaultMutableTreeNode) node.getChildAt(i);
-            Question nodeData = (Question) childNode.getUserObject();
-            if (nodeData.getFrontendQuestionId().equals(question.getFrontendQuestionId())) {
-                TreePath toShowPath = new TreePath(childNode.getPath());
-                tree.setSelectionPath(toShowPath);
-                Rectangle bounds = tree.getPathBounds(toShowPath);
-                Point point = new Point(0, (int) bounds.getY());
-                JViewport viewport = scrollPane.getViewport();
-                viewport.setViewPosition(point);
-                return;
-            }
-
-        }
-    }
-
-    public static Sort getSort(String key) {
-        return sortMap.get(key);
-    }
-
-    public static void operationType(String key) {
-        int type = sortMap.get(key).operationType();
-        sortMap.forEach((s, sort) -> {
-            if (!s.equals(key)) {
-                sort.resetType();
-            }
-            if(Constant.SORT_NONE == type && s.equals(Constant.SORT_TYPE_ID)){
-                sort.operationType();
-            }
-        });
+        navigatorAction.getPageInfo().setRows(conformList);
+        navigatorAction.getPageInfo().setRowTotal(conformList.size());
+        navigatorAction.loadData(selectTitleSlug);
     }
 }

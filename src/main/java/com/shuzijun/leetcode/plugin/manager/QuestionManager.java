@@ -1,490 +1,345 @@
 package com.shuzijun.leetcode.plugin.manager;
 
-import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import com.google.common.base.Function;
-import com.google.common.collect.ImmutableListMultimap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Multimaps;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.Maps;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
-import com.shuzijun.leetcode.plugin.model.Constant;
-import com.shuzijun.leetcode.plugin.model.Question;
-import com.shuzijun.leetcode.plugin.model.Sort;
-import com.shuzijun.leetcode.plugin.model.Tag;
+import com.shuzijun.leetcode.plugin.model.*;
 import com.shuzijun.leetcode.plugin.setting.PersistentConfig;
 import com.shuzijun.leetcode.plugin.utils.*;
+import com.shuzijun.leetcode.plugin.utils.doc.CleanMarkdown;
 import com.shuzijun.leetcode.plugin.window.WindowFactory;
 import org.apache.commons.lang.StringUtils;
 
+import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author shuzijun
  */
 public class QuestionManager {
 
+    private static final Cache<String, QuestionView> dayMap = CacheBuilder.newBuilder().maximumSize(5).expireAfterWrite(2, TimeUnit.DAYS).build();
+    private static final Cache<String, Question> questionCache = CacheBuilder.newBuilder().maximumSize(30).build();
+    private static final Cache<String, List<QuestionView>> questionAllCache = CacheBuilder.newBuilder().expireAfterWrite(2, TimeUnit.DAYS).build();
+    private static final Map<String, Map<String, Integer>> questionIndexCache = Maps.newLinkedHashMap();
 
-    private static List<Question> QUESTIONLIST = null;
 
-    private final static String ALLNAME = "all.json";
-
-    private final static String TRANSLATIONNAME = "translation.json";
-
-    private static String dayQuestion = null;
-
-    public static List<Question> getQuestionService(Project project, String categorySlug) {
-        Boolean isPremium = false;
-        if (HttpRequestUtils.isLogin()) {
-            HttpRequest httpRequest = HttpRequest.post(URLUtils.getLeetcodeGraphql(), "application/json");
-            httpRequest.setBody("{\"query\":\"\\n    query globalData {\\n  userStatus {\\n    isSignedIn\\n    isPremium\\n    username\\n    realName\\n    avatar\\n    userSlug\\n    isAdmin\\n    useTranslation\\n    premiumExpiredAt\\n    isTranslator\\n    isSuperuser\\n    isPhoneVerified\\n  }\\n  jobsMyCompany {\\n    nameSlug\\n  }\\n  commonNojPermissionTypes\\n}\\n    \",\"variables\":{},\"operationName\":\"globalData\"}");
-            httpRequest.addHeader("Accept", "application/json");
-            HttpResponse response = HttpRequestUtils.executePost(httpRequest);
-            if (response != null && response.getStatusCode() == 200) {
-                JSONObject user = JSONObject.parseObject(response.getBody()).getJSONObject("data").getJSONObject("userStatus");
-                isPremium =  user.getBoolean("isPremium");
-                ApplicationManager.getApplication().invokeAndWait(() -> {
-                    WindowFactory.updateTitle(project, user.getString("username"));
-                });
-            } else {
-                LogUtils.LOG.error("Request userStatus  failed, status:" + response == null ? "" : response.getStatusCode());
-            }
+    public static PageInfo<QuestionView> getQuestionViewList(Project project, PageInfo<QuestionView> pageInfo) {
+        boolean isPremium = false;
+        User user = WindowFactory.getDataContext(project).getData(DataKeys.LEETCODE_PROJECTS_TABS).getUser();
+        if (user != null) {
+            isPremium = user.isPremium();
         }
-        List<Question> questionList = new ArrayList<>();
-        int skip = 0;
-        int limit = 100;
-        int total = -1;
-        while(true) {
-            try {
-                Map<String, Object> page = getQuestionPage(categorySlug, skip, limit, isPremium);
-                if (total < 0) {
-                    total = (int) page.get("total");
-                }
-                questionList.addAll((List) page.get("questionList"));
-                skip = skip + limit;
-                if(total <= skip){
-                    break;
-                }
-            } catch (Exception e) {
-                return null;
+
+        HttpResponse response = Graphql.builder().cn(URLUtils.isCn()).operationName("problemsetQuestionList")
+                .variables("categorySlug", pageInfo.getCategorySlug()).variables("skip", pageInfo.getSkip())
+                .variables("limit", pageInfo.getPageSize()).variables("filters", pageInfo.getFilters())
+                .cacheParam(WindowFactory.getDataContext(project).getData(DataKeys.LEETCODE_PROJECTS_TABS).getUser().getUsername()).request();
+        if (response.getStatusCode() == 200) {
+            List<QuestionView> questionList = parseQuestion(response.getBody(), isPremium);
+
+            QuestionView dayQuestion = questionOfToday();
+            if (dayQuestion != null) {
+                questionList.add(0, dayQuestion);
             }
 
-        }
-        questionOfToday();
-        sortQuestionList(questionList, new Sort(Constant.SORT_TYPE_ID, 1));
-        if (questionList != null && !questionList.isEmpty()) {
-            String filePath = PersistentConfig.getInstance().getTempFilePath() + Constant.DOC_PATH + ALLNAME;
-            FileUtils.saveFile(filePath, JSON.toJSONString(questionList));
-            QUESTIONLIST = questionList;
-        }
-        return questionList;
-
-    }
-
-    private static Map<String, Object> getQuestionPage(String categorySlug, int skip, int limit, Boolean isPremium) throws Exception {
-        HttpRequest httpRequest = HttpRequest.post(URLUtils.getLeetcodeGraphql(), "application/json");
-        if (URLUtils.isCn()) {
-            httpRequest.setBody("{\"query\":\"\\n    query problemsetQuestionList($categorySlug: String, $limit: Int, $skip: Int, $filters: QuestionListFilterInput) {\\n  problemsetQuestionList(\\n    categorySlug: $categorySlug\\n    limit: $limit\\n    skip: $skip\\n    filters: $filters\\n  ) {\\n    hasMore\\n    total\\n    questions {\\n      acRate\\n      difficulty\\n      freqBar\\n      frontendQuestionId\\n      isFavor\\n      paidOnly\\n      solutionNum\\n      status\\n      title\\n      titleCn\\n      titleSlug\\n      topicTags {\\n        name\\n        nameTranslated\\n        id\\n        slug\\n      }\\n      extra {\\n        hasVideoSolution\\n        topCompanyTags {\\n          imgUrl\\n          slug\\n          numSubscribed\\n        }\\n      }\\n    }\\n  }\\n}\\n    \",\"variables\":{\"categorySlug\":\""+categorySlug+"\",\"skip\":" + skip + ",\"limit\":" + limit + ",\"filters\":{}},\"operationName\":\"problemsetQuestionList\"}");
-        } else {
-            httpRequest.setBody("{\"query\":\"\\n    query problemsetQuestionList($categorySlug: String, $limit: Int, $skip: Int, $filters: QuestionListFilterInput) {\\n  problemsetQuestionList: questionList(\\n    categorySlug: $categorySlug\\n    limit: $limit\\n    skip: $skip\\n    filters: $filters\\n  ) {\\n    total: totalNum\\n    questions: data {\\n      acRate\\n      difficulty\\n      freqBar\\n      frontendQuestionId: questionFrontendId\\n      isFavor\\n      paidOnly: isPaidOnly\\n      status\\n      title\\n      titleSlug\\n      topicTags {\\n        name\\n        id\\n        slug\\n      }\\n      hasSolution\\n      hasVideoSolution\\n    }\\n  }\\n}\\n    \",\"variables\":{\"categorySlug\":\"" + categorySlug + "\",\"skip\":" + skip + ",\"limit\":" + limit + ",\"filters\":{}},\"operationName\":\"problemsetQuestionList\"}");
-        }
-        httpRequest.addHeader("Accept", "application/json");
-        HttpResponse response = HttpRequestUtils.executePost(httpRequest);
-        if (response != null && response.getStatusCode() == 200) {
-            List questionList = parseQuestion(response.getBody(), isPremium);
             Integer total = JSONObject.parseObject(response.getBody()).getJSONObject("data").getJSONObject("problemsetQuestionList").getInteger("total");
-            Map<String, Object> page = new HashMap<>();
-            page.put("total", total);
-            page.put("questionList", questionList);
-            return page;
+            pageInfo.setRowTotal(total);
+            pageInfo.setRows(questionList);
         } else {
-            LogUtils.LOG.error("Request question list failed, status:" + response == null ? "" : response.getStatusCode());
+            LogUtils.LOG.error("Request question list failed, status:" + response.getStatusCode());
             throw new RuntimeException("Request question list failed");
         }
+
+        return pageInfo;
+
     }
 
-    public static List<Question> getQuestionCache() {
-        if (QUESTIONLIST != null) {
-            return QUESTIONLIST;
+    public static List<QuestionView> getQuestionAllService(Project project, boolean reset) {
+        Boolean isPremium = false;
+        User user = WindowFactory.getDataContext(project).getData(DataKeys.LEETCODE_PROJECTS_TABS).getUser();
+        if (user != null) {
+            isPremium = user.isPremium();
         }
+        if (questionAllCache.getIfPresent(URLUtils.getLeetcodeHost()) == null || reset) {
+            String key = URLUtils.getLeetcodeHost() + "getQuestionAll";
+            synchronized (key.intern()) {
+                if (questionAllCache.getIfPresent(URLUtils.getLeetcodeHost()) == null || reset) {
+                    HttpResponse response = Graphql.builder().cn(URLUtils.isCn()).operationName("allQuestions")
+                            .cacheParam(WindowFactory.getDataContext(project).getData(DataKeys.LEETCODE_PROJECTS_TABS).getUser().getUsername()).request();
+                    if (response.getStatusCode() == 200) {
+                        List<QuestionView> questionViews = new ArrayList<>();
 
-        String filePath = PersistentConfig.getInstance().getTempFilePath() + Constant.DOC_PATH + ALLNAME;
-        String body = FileUtils.getFileBody(filePath);
+                        JSONArray allQuestions = JSONObject.parseObject(response.getBody()).getJSONObject("data").getJSONArray("allQuestions");
+                        for (int i = 0; i < allQuestions.size(); i++) {
+                            JSONObject jsonObject = allQuestions.getJSONObject(i);
+                            QuestionView questionView = jsonObject.toJavaObject(QuestionView.class);
+                            if (jsonObject.getBoolean("isPaidOnly") && !isPremium) {
+                                questionView.setStatus("lock");
+                            }
+                            if (URLUtils.isCn() && !PersistentConfig.getInstance().getConfig().getEnglishContent()) {
+                                if (StringUtils.isNotBlank(jsonObject.getString("translatedTitle"))) {
+                                    questionView.setTitle(jsonObject.getString("translatedTitle"));
+                                }
+                            }
+                            questionViews.add(questionView);
 
-        if (StringUtils.isBlank(body)) {
-            return Lists.newArrayList();
-        } else {
-            List<Question> questionList = JSON.parseArray(body, Question.class);
-            QUESTIONLIST = questionList;
-            return questionList;
-        }
-    }
+                        }
 
-    public static List<Tag> getDifficulty() {
+                        Collections.sort(questionViews, (o1, o2) -> o1.frontendQuestionIdCompareTo(o2));
 
-        List<String> keyList = Lists.newArrayList(Constant.DIFFICULTY_EASY, Constant.DIFFICULTY_MEDIUM, Constant.DIFFICULTY_HARD);
+                        Map<String, Integer> questionIndex = Maps.newHashMap();
+                        for (int i = 0; i < questionViews.size(); i++) {
+                            questionIndex.put(questionViews.get(i).getTitleSlug(), i);
+                        }
 
-        List<Question> questionList = getQuestionCache();
-        ImmutableListMultimap<String, Question> questionImmutableMap = Multimaps.index(questionList.iterator(), new Function<Question, String>() {
-            @Override
-            public String apply(Question question) {
-                String difficulty;
-                if (question.getLevel() == 1) {
-                    difficulty = Constant.DIFFICULTY_EASY;
-                } else if (question.getLevel() == 2) {
-                    difficulty = Constant.DIFFICULTY_MEDIUM;
-                } else if (question.getLevel() == 3) {
-                    difficulty = Constant.DIFFICULTY_HARD;
-                } else {
-                    difficulty = Constant.DIFFICULTY_UNKNOWN;
+                        questionAllCache.put(URLUtils.getLeetcodeHost(), questionViews);
+                        questionIndexCache.put(URLUtils.getLeetcodeHost(), questionIndex);
+                    } else {
+                        questionAllCache.invalidate(URLUtils.getLeetcodeHost());
+                        questionIndexCache.remove(URLUtils.getLeetcodeHost());
+                    }
                 }
-                return difficulty;
             }
-        });
-
-        List<Tag> difficultyList = Lists.newArrayList();
-        for (String key : keyList) {
-            Tag tag = new Tag();
-            tag.setName(key);
-            for (Question question : questionImmutableMap.get(key)) {
-                tag.addFrontendQuestionId(question.getFrontendQuestionId());
-            }
-            difficultyList.add(tag);
         }
-        return difficultyList;
+        return questionAllCache.getIfPresent(URLUtils.getLeetcodeHost());
     }
 
-    public static List<Tag> getStatus() {
-        List<String> keyList = Lists.newArrayList(Constant.STATUS_TODO, Constant.STATUS_SOLVED, Constant.STATUS_ATTEMPTED);
-
-        List<Question> questionList = getQuestionCache();
-        ImmutableListMultimap<String, Question> questionImmutableMap = Multimaps.index(questionList.iterator(), new Function<Question, String>() {
-            @Override
-            public String apply(Question question) {
-                String status;
-                if ("ac".equals(question.getStatus())) {
-                    status = Constant.STATUS_SOLVED;
-                } else if ("notac".equals(question.getStatus())) {
-                    status = Constant.STATUS_ATTEMPTED;
-                } else {
-                    status = Constant.STATUS_TODO;
-                }
-                return status;
-            }
-        });
-
-        List<Tag> statusList = Lists.newArrayList();
-        for (String key : keyList) {
-            Tag tag = new Tag();
-            tag.setName(key);
-            for (Question question : questionImmutableMap.get(key)) {
-                tag.addFrontendQuestionId(question.getFrontendQuestionId());
-            }
-            statusList.add(tag);
-        }
-        return statusList;
-    }
-
-    public static List<Tag> getTags() {
-        List<Tag> tags = new ArrayList<>();
-
-        HttpRequest httpRequest = HttpRequest.get(URLUtils.getLeetcodeTags());
-        HttpResponse response = HttpRequestUtils.executeGet(httpRequest);
-        if (response != null && response.getStatusCode() == 200) {
-            try {
-                String body = response.getBody();
-                tags = parseTag(body);
-            } catch (Exception e1) {
-                LogUtils.LOG.error("Request tags exception", e1);
-            }
+    public static QuestionIndex getQuestionIndex(String titleSlug) {
+        if (questionAllCache.getIfPresent(URLUtils.getLeetcodeHost()) == null) {
+            return null;
+        } else if (!questionIndexCache.get(URLUtils.getLeetcodeHost()).containsKey(titleSlug)) {
+            return null;
         } else {
-            LogUtils.LOG.error("Request tags failed, status:" + response.getStatusCode() + "body:" + response.getBody());
+            QuestionIndex questionIndex = new QuestionIndex();
+            questionIndex.setIndex(questionIndexCache.get(URLUtils.getLeetcodeHost()).get(titleSlug));
+            questionIndex.setQuestionView(questionAllCache.getIfPresent(URLUtils.getLeetcodeHost()).get(questionIndex.getIndex()));
+            return questionIndex;
         }
-
-        return tags;
     }
 
-    public static List<Tag> getLists() {
-        List<Tag> tags = new ArrayList<>();
+    private static List<QuestionView> parseQuestion(String str, Boolean isPremium) {
 
-        HttpRequest httpRequest = HttpRequest.get(URLUtils.getLeetcodeFavorites());
-        HttpResponse response = HttpRequestUtils.executeGet(httpRequest);
-        if (response != null && response.getStatusCode() == 200) {
-            try {
-                String body = response.getBody();
-                tags = parseList(body);
-            } catch (Exception e1) {
-                LogUtils.LOG.error("Request Lists exception", e1);
-            }
-        } else {
-            LogUtils.LOG.error("Request Lists failed, status:" + response.getStatusCode() + "body:" + response.getBody());
-        }
-        return tags;
-    }
-
-    public static List<Tag> getCategory(String categorySlug) {
-        List<Tag> tags = new ArrayList<>();
-
-        HttpRequest httpRequest = HttpRequest.get(URLUtils.getLeetcodeCardInfo());
-        HttpResponse response = HttpRequestUtils.executeGet(httpRequest);
-        if (response != null && response.getStatusCode() == 200) {
-            try {
-                String body = response.getBody();
-                tags = parseCategory(body, categorySlug);
-            } catch (Exception e1) {
-                LogUtils.LOG.error("Request CardInfo exception", e1);
-            }
-        } else {
-            LogUtils.LOG.error("Request CardInfo failed, status:" + response.getStatusCode() + "body:" + response.getBody());
-        }
-        return tags;
-    }
-
-
-    private static List<Question> parseQuestion(String str, Boolean isPremium) {
-
-        List<Question> questionList = new ArrayList<Question>();
+        List<QuestionView> questionList = new ArrayList<>();
 
         if (StringUtils.isNotBlank(str)) {
             JSONObject jsonObject = JSONObject.parseObject(str).getJSONObject("data").getJSONObject("problemsetQuestionList");
             JSONArray jsonArray = jsonObject.getJSONArray("questions");
             for (int i = 0; i < jsonArray.size(); i++) {
                 JSONObject object = jsonArray.getJSONObject(i);
-                Question question = new Question(object.getString("title"));
-                if (URLUtils.isCn() && !PersistentConfig.getInstance().getConfig().getEnglishContent()) {
-                    question.setTitle(object.getString("titleCn"));
-                }
-                question.setLeaf(Boolean.TRUE);
-                //question.setQuestionId(object.getString("frontendQuestionId"));
-                question.setFrontendQuestionId(object.getString("frontendQuestionId"));
-                question.setAcceptance(object.getDouble("acRate"));
-                try {
-                    if (object.getBoolean("paidOnly") && !isPremium) {
-                        question.setStatus("lock");
-                    } else {
-                        question.setStatus(object.get("status") == null ? "" : object.getString("status").toLowerCase());
-                    }
-                    if (object.containsKey("freqBar") && object.get("freqBar") != null) {
-                        question.setFrequency(object.getDouble("freqBar"));
-                    }
-                } catch (Exception ee) {
-                    question.setStatus("");
-                }
-                question.setTitleSlug(object.getString("titleSlug"));
-                question.setLevel(object.getString("difficulty"));
-                try {
-                    if (object.containsKey("hasSolution")) {
-                        if (object.getBoolean("hasSolution")) {
-                            question.setArticleLive(Constant.ARTICLE_LIVE_ONE);
-                            question.setArticleSlug(object.getString("titleSlug"));
-                            question.setColumnArticles(1);
-                        } else {
-                            question.setArticleLive(Constant.ARTICLE_LIVE_NONE);
-                        }
-                    } else if (object.containsKey("solutionNum")) {
-                        question.setArticleLive(Constant.ARTICLE_LIVE_LIST);
-                        question.setColumnArticles(object.getInteger("solutionNum"));
-                    } else {
-                        question.setArticleLive(Constant.ARTICLE_LIVE_NONE);
-                    }
-                } catch (Exception e) {
-                    LogUtils.LOG.error("Identify abnormal article", e);
-                    question.setArticleLive(Constant.ARTICLE_LIVE_NONE);
-                }
+                QuestionView question = parseQuestionView(object, isPremium);
                 questionList.add(question);
             }
         }
         return questionList;
     }
 
-   /* private static void translation(List<Question> questions) {
-
+    private static QuestionView parseQuestionView(JSONObject object, Boolean isPremium) {
+        QuestionView question = new QuestionView(object.getString("title"));
         if (URLUtils.isCn() && !PersistentConfig.getInstance().getConfig().getEnglishContent()) {
+            if (StringUtils.isNotBlank(object.getString("titleCn"))) {
+                question.setTitle(object.getString("titleCn"));
+            }
+        }
+        question.setFrontendQuestionId(object.getString("frontendQuestionId"));
+        question.setAcceptance(object.getDouble("acRate"));
+        try {
+            if (object.getBoolean("paidOnly") && !isPremium) {
+                question.setStatus("lock");
+            } else {
+                question.setStatus(object.get("status") == null ? "" : object.getString("status").toLowerCase());
+            }
+            if (object.containsKey("freqBar") && object.get("freqBar") != null) {
+                question.setFrequency(object.getDouble("freqBar"));
+            }
+        } catch (Exception ee) {
+            question.setStatus("");
+        }
+        question.setTitleSlug(object.getString("titleSlug"));
+        question.setLevel(object.getString("difficulty"));
+        return question;
+    }
 
-            String filePathTranslation = PersistentConfig.getInstance().getTempFilePath() + Constant.DOC_PATH + TRANSLATIONNAME;
-
+    public static QuestionView questionOfToday() {
+        QuestionView dayQuestion = dayMap.getIfPresent(URLUtils.getLeetcodeHost() + new SimpleDateFormat("yyyy-MM-dd").format(new Date()));
+        if (dayQuestion == null) {
             try {
-                HttpRequest httpRequest = HttpRequest.post(URLUtils.getLeetcodeGraphql(), "application/json");
-                httpRequest.setBody("{\"operationName\":\"getQuestionTranslation\",\"variables\":{},\"query\":\"query getQuestionTranslation($lang: String) {\\n  translations: allAppliedQuestionTranslations(lang: $lang) {\\n    title\\n    questionId\\n    __typename\\n  }\\n}\\n\"}");
-                httpRequest.addHeader("Accept", "application/json");
-                HttpResponse response = HttpRequestUtils.executePost(httpRequest);
-                String body;
-                if (response != null && response.getStatusCode() == 200) {
-                    body = response.getBody();
-                    FileUtils.saveFile(filePathTranslation, body);
+                HttpResponse response = Graphql.builder().cn(URLUtils.isCn()).operationName("questionOfToday").request();
+                if (response.getStatusCode() != 200) {
+                    return null;
                 } else {
-                    body = FileUtils.getFileBody(filePathTranslation);
+                    JSONObject dateObject = JSONObject.parseObject(response.getBody()).getJSONObject("data");
+                    JSONObject todayRecordObject;
+                    if (URLUtils.isCn()) {
+                        todayRecordObject = dateObject.getJSONArray("activeDailyCodingChallengeQuestion").getJSONObject(0);
+                    } else {
+                        todayRecordObject = dateObject.getJSONObject("activeDailyCodingChallengeQuestion");
+                    }
+                    dayQuestion = parseQuestionView(todayRecordObject.getJSONObject("question"), true);
+                    dayQuestion.setStatus("day");
+                    dayMap.put(URLUtils.getLeetcodeHost() + todayRecordObject.getString("date"), dayQuestion);
+                }
+            } catch (Exception ignore) {
+
+            }
+        }
+
+        return dayQuestion;
+    }
+
+
+    private static boolean getQuestion(Question question, Project project) {
+        try {
+            HttpResponse response = Graphql.builder().operationName("questionData").variables("titleSlug", question.getTitleSlug()).request();
+            if (response.getStatusCode() == 200) {
+
+                String body = response.getBody();
+
+                JSONObject jsonObject = JSONObject.parseObject(body).getJSONObject("data").getJSONObject("question");
+
+                question.setQuestionId(jsonObject.getString("questionId"));
+                question.setContent(getContent(jsonObject));
+                question.setTestCase(jsonObject.getString("sampleTestCase"));
+                question.setExampleTestcases(jsonObject.getString("exampleTestcases"));
+                question.setStatus(jsonObject.get("status") == null ? "" : jsonObject.getString("status"));
+                question.setTitle(jsonObject.getString("title"));
+                if (URLUtils.isCn() && !PersistentConfig.getInstance().getConfig().getEnglishContent()) {
+                    if (StringUtils.isNotBlank(jsonObject.getString("translatedTitle"))) {
+                        question.setTitle(jsonObject.getString("translatedTitle"));
+                    }
+                }
+                question.setFrontendQuestionId(jsonObject.getString("questionFrontendId"));
+                question.setLevel(jsonObject.getString("difficulty"));
+                if (URLUtils.isCn()) {
+                    question.setArticleLive(Constant.ARTICLE_LIVE_LIST);
+                } else if (jsonObject.get("solution") != null) {
+                    question.setArticleLive(Constant.ARTICLE_LIVE_ONE);
+                    question.setArticleSlug(question.getTitleSlug());
+                } else {
+                    question.setArticleLive(Constant.ARTICLE_LIVE_NONE);
                 }
 
-                if (StringUtils.isNotBlank(body)) {
-                    Map<String, String> translationMap = new HashMap<String, String>();
-                    JSONArray jsonArray = JSONObject.parseObject(body).getJSONObject("data").getJSONArray("translations");
+                JSONArray jsonArray = jsonObject.getJSONArray("codeSnippets");
+                if (jsonArray != null) {
+                    List<CodeSnippet> codeSnippets = new ArrayList<>();
                     for (int i = 0; i < jsonArray.size(); i++) {
                         JSONObject object = jsonArray.getJSONObject(i);
-                        translationMap.put(object.getString("questionId"), object.getString("title"));
+                        CodeSnippet codeSnippet = new CodeSnippet();
+                        codeSnippet.setCode(object.getString("code").replaceAll("\\n", "\n"));
+                        codeSnippet.setLang(object.getString("lang"));
+                        codeSnippet.setLangSlug(object.getString("langSlug"));
+                        codeSnippets.add(codeSnippet);
                     }
-                    for (Question question : questions) {
-                        if (translationMap.containsKey(question.getQuestionId())) {
-                            question.setTitle(translationMap.get(question.getQuestionId()));
+                    question.setCodeSnippets(codeSnippets);
+                }
+                return Boolean.TRUE;
+            } else {
+                MessageUtils.getInstance(project).showWarnMsg("error", PropertiesUtils.getInfo("response.code"));
+            }
+
+        } catch (Exception e) {
+            LogUtils.LOG.error("获取代码失败", e);
+            MessageUtils.getInstance(project).showWarnMsg("error", PropertiesUtils.getInfo("response.code"));
+        }
+        return Boolean.FALSE;
+    }
+
+    private static String getContent(JSONObject jsonObject) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(CleanMarkdown.cleanMarkdown(jsonObject.getString(URLUtils.getDescContent()), ""));
+        Config config = PersistentConfig.getInstance().getConfig();
+        if (config.getShowTopics()) {
+            JSONArray topicTagsArray = jsonObject.getJSONArray("topicTags");
+            if (topicTagsArray != null && !topicTagsArray.isEmpty()) {
+                sb.append("<div><div>Related Topics</div><div>");
+                for (int i = 0; i < topicTagsArray.size(); i++) {
+                    JSONObject tag = topicTagsArray.getJSONObject(i);
+                    sb.append("<li>");
+                    if (StringUtils.isBlank(tag.getString("translatedName"))) {
+                        sb.append(tag.getString("name"));
+                    } else {
+                        sb.append(tag.getString("translatedName"));
+                    }
+                    sb.append("</li>");
+                }
+                sb.append("</div></div>");
+                sb.append("<br>");
+            }
+        }
+        sb.append("<div><li>\uD83D\uDC4D ").append(jsonObject.getInteger("likes")).append("</li><li>\uD83D\uDC4E ").append(jsonObject.getInteger("dislikes")).append("</li></div>");
+        return sb.toString();
+    }
+
+    public static Question pick(Project project, PageInfo<?> pageInfo) {
+        String titleSlug = null;
+        HttpResponse response = Graphql.builder().cn(URLUtils.isCn()).operationName("randomQuestion").variables("categorySlug", pageInfo.getCategorySlug()).variables("filters", pageInfo.getFilters()).request();
+        if (response.getStatusCode() == 200) {
+            String body = response.getBody();
+            if (URLUtils.isCn()) {
+                titleSlug = JSONObject.parseObject(body).getJSONObject("data").getString("randomQuestion");
+            } else {
+                titleSlug = JSONObject.parseObject(body).getJSONObject("data").getJSONObject("randomQuestion").getString("titleSlug");
+            }
+        }
+        if (StringUtils.isNotBlank(titleSlug)) {
+            return getQuestionByTitleSlug(titleSlug, project);
+        } else {
+            return null;
+        }
+
+    }
+
+    public static User getUser() {
+        HttpResponse response = Graphql.builder().cn(URLUtils.isCn()).operationName("userStatus","globalData").request();
+        if (response.getStatusCode() == 200) {
+            JSONObject userObject = JSONObject.parseObject(response.getBody()).getJSONObject("data").getJSONObject("userStatus");
+            User user = new User();
+            user.setPremium(userObject.getBoolean("isPremium"));
+            user.setUsername(userObject.getString("username"));
+            if (userObject.containsValue("userSlug")){
+                user.setUserSlug(userObject.getString("userSlug"));
+            }else {
+                user.setUserSlug(user.getUsername());
+            }
+            user.setSignedIn(userObject.getBoolean("isSignedIn"));
+            user.setVerified(userObject.getBoolean("isVerified"));
+            user.setPhoneVerified(userObject.getBoolean("isPhoneVerified"));
+            return user;
+        } else {
+            LogUtils.LOG.error("Request userStatus  failed, status:" + response.getStatusCode());
+            return new User();
+        }
+    }
+
+    public static Question getQuestionByTitleSlug(String titleSlug, Project project) {
+        if (StringUtils.isBlank(titleSlug)) {
+            return null;
+        }
+        String key = URLUtils.getLeetcodeHost() + titleSlug;
+        if (questionCache.getIfPresent(key) == null) {
+            synchronized (key.intern()) {
+                if (questionCache.getIfPresent(key) == null) {
+                    try {
+                        Question question = new Question();
+                        question.setTitleSlug(titleSlug);
+                        if (ApplicationManager.getApplication().executeOnPooledThread(() -> {
+                            return getQuestion(question, project);
+                        }).get()) {
+                            questionCache.put(key, question);
+                        } else {
+                            return null;
                         }
+                    } catch (Exception e) {
+                        return null;
                     }
-                } else {
-                    LogUtils.LOG.error("读取翻译内容为空");
                 }
-
-            } catch (Exception e1) {
-                LogUtils.LOG.error("获取题目翻译错误", e1);
-            }
-
-        }
-    }*/
-
-    private static void questionOfToday() {
-        if (URLUtils.isCn()) {
-            try {
-                HttpRequest httpRequest = HttpRequest.post(URLUtils.getLeetcodeGraphql(), "application/json");
-                httpRequest.setBody("{\"operationName\":\"questionOfToday\",\"variables\":{},\"query\":\"query questionOfToday {\\n  todayRecord {\\n    question {\\n      questionFrontendId\\n      questionTitleSlug\\n      __typename\\n    }\\n    lastSubmission {\\n      id\\n      __typename\\n    }\\n    date\\n    userStatus\\n    __typename\\n  }\\n}\\n\"}");
-                httpRequest.addHeader("Accept", "application/json");
-                HttpResponse response = HttpRequestUtils.executePost(httpRequest);
-                if (response == null || response.getStatusCode() != 200) {
-                    QuestionManager.dayQuestion = null;
-                } else {
-                    QuestionManager.dayQuestion = JSONObject.parseObject(response.getBody()).getJSONObject("data").getJSONArray("todayRecord").getJSONObject(0).getJSONObject("question").getString("questionFrontendId");
-                    return;
-                }
-            } catch (Exception e1) {
             }
         }
-        QuestionManager.dayQuestion = null;
+        return questionCache.getIfPresent(key);
     }
-
-
-    private static List<Tag> parseTag(String str) {
-        List<Tag> tags = new ArrayList<Tag>();
-
-        if (StringUtils.isNotBlank(str)) {
-
-            JSONArray jsonArray = JSONObject.parseObject(str).getJSONArray("topics");
-            for (int i = 0; i < jsonArray.size(); i++) {
-                JSONObject object = jsonArray.getJSONObject(i);
-                Tag tag = new Tag();
-                tag.setSlug(object.getString("slug"));
-                String name = object.getString(URLUtils.getTagName());
-                if (StringUtils.isBlank(name)) {
-                    name = object.getString("name");
-                }
-                tag.setName(name);
-                JSONArray questionArray = object.getJSONArray("questions");
-                for (int j = 0; j < questionArray.size(); j++) {
-                    tag.addFrontendQuestionId(questionArray.getInteger(j).toString());
-                }
-                tags.add(tag);
-            }
-        }
-        return tags;
-    }
-
-    private static List<Tag> parseCategory(String str, String categorySlug) {
-        List<Tag> tags = new ArrayList<Tag>();
-
-        if (StringUtils.isNotBlank(str)) {
-
-            JSONArray jsonArray = JSONArray.parseObject(str).getJSONObject("categories").getJSONArray("0");
-            for (int i = 0; i < jsonArray.size(); i++) {
-                JSONObject object = jsonArray.getJSONObject(i);
-                Tag tag = new Tag();
-                tag.setSlug(object.getString("slug"));
-                tag.setType(URLUtils.getLeetcodeUrl() + "/api" + object.getString("url").replace("problemset", "problems"));
-                tag.setName(object.getString("title"));
-                if (categorySlug.contains(tag.getSlug())) {
-                    tag.setSelect(true);
-                }
-                tags.add(tag);
-            }
-        }
-        return tags;
-    }
-
-    private static List<Tag> parseList(String str) {
-        List<Tag> tags = new ArrayList<Tag>();
-
-        if (StringUtils.isNotBlank(str)) {
-
-            JSONArray jsonArray = JSONArray.parseArray(str);
-            for (int i = 0; i < jsonArray.size(); i++) {
-                JSONObject object = jsonArray.getJSONObject(i);
-                Tag tag = new Tag();
-                tag.setSlug(object.getString("id"));
-                tag.setType(object.getString("type"));
-                String name = object.getString("name");
-                if (StringUtils.isBlank(name)) {
-                    name = object.getString("name");
-                }
-                tag.setName(name);
-                JSONArray questionArray = object.getJSONArray("questions");
-                for (int j = 0; j < questionArray.size(); j++) {
-                    tag.addFrontendQuestionId(questionArray.getInteger(j).toString());
-                }
-                tags.add(tag);
-            }
-        }
-        return tags;
-    }
-
-    public static void sortQuestionList(List<Question> list, Sort sort) {
-        if (list == null || list.isEmpty() || sort.getType() == Constant.SORT_NONE) {
-            return;
-        }
-        Collections.sort(list, new QuestionComparator(sort));
-
-    }
-
-    private static class QuestionComparator implements Comparator<Question> {
-
-        private Sort sort;
-
-        public QuestionComparator(Sort sort) {
-            this.sort = sort;
-        }
-
-        @Override
-        public int compare(Question o1, Question o2) {
-            if (o1.getFrontendQuestionId().equals(dayQuestion)) {
-                return -1;
-            } else if (o2.getFrontendQuestionId().equals(dayQuestion)) {
-                return 1;
-            }
-            int order = 0;
-            if (Constant.SORT_TYPE_ID.equals(sort.getSlug())) {
-                String frontendId0 = o1.getFrontendQuestionId();
-                String frontendId1 = o2.getFrontendQuestionId();
-                if (StringUtils.isNumeric(frontendId0) && StringUtils.isNumeric(frontendId1)) {
-                    order = Integer.valueOf(frontendId0).compareTo(Integer.valueOf(frontendId1));
-                } else if (StringUtils.isNumeric(frontendId0)) {
-                    order = -1;
-                } else if (StringUtils.isNumeric(frontendId1)) {
-                    order = 1;
-                } else {
-                    order = frontendId0.compareTo(frontendId1);
-                }
-            } else if (Constant.SORT_TYPE_TITLE.equals(sort.getSlug())) {
-                order = o1.getTitle().compareTo(o2.getTitle());
-            } else if (Constant.SORT_TYPE_SOLUTION.equals(sort.getSlug())) {
-                order = o1.getColumnArticles().compareTo(o2.getColumnArticles());
-            } else if (Constant.SORT_TYPE_ACCEPTANCE.equals(sort.getSlug())) {
-                order = o1.getAcceptance().compareTo(o2.getAcceptance());
-            } else if (Constant.SORT_TYPE_DIFFICULTY.equals(sort.getSlug())) {
-                order = o1.getLevel().compareTo(o2.getLevel());
-            } else if (Constant.SORT_TYPE_FREQUENCY.equals(sort.getSlug())) {
-                order = o1.getFrequency().compareTo(o2.getFrequency());
-            }
-
-            if (sort.getType() == Constant.SORT_DESC) {
-                return 0 - order;
-            }
-            return order;
-        }
-    }
-
 }

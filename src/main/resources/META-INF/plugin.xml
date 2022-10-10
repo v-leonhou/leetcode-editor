@@ -1,130 +1,12 @@
 <idea-plugin>
     <id>leetcode-editor</id>
     <name>LeetCode Editor</name>
-    <version>7.0</version>
-    <vendor email="shuzijun0109@gmail.com" url="https://github.com/shuzijun/idea-leetcode-plugin">shuzijun</vendor>
+    <version>8.1</version>
+    <vendor email="shuzijun0109@gmail.com" url="https://github.com/shuzijun/leetcode-editor">shuzijun</vendor>
 
-    <description><![CDATA[
-        <div>
-           <p>Support for leetcode.com and leetcode-cn.com, can test and submit questions.
-			  More tutorial please visit： <a href="https://github.com/shuzijun/leetcode-editor">here</a></p>
-        </div>
-        <div>
-			<h2>Introduction</h2>
-			<br>
-			<ul>
-				<li>Support for leetcode.com and leetcode-cn.com, can test and submit questions</li>
-				<li>More tutorial please visit： <a href="https://github.com/shuzijun/leetcode-editor">here</a></li>
-			</ul>
-			<ul>
-				<li>支持leetcode.com和leetcode-cn.com,可测试与提交问题</li>
-				<li>更多的插件使用教程： <a href="https://github.com/shuzijun/leetcode-editor">插件使用介绍</a></li>
-			</ul>
-		</div>
-		<div>
-			<h2>How to use</h2>
-			<br>
-			<p >
-				<img src="https://raw.githubusercontent.com/shuzijun/leetcode-editor/master/doc/leetcode-editor-3.0.gif" alt="demo" />
-			</p>
-		</div>
-		<br>
-		<div>
-			<h2>Local debugging  </h2>
-			<br>
-			<p >
-				<img src="https://raw.githubusercontent.com/shuzijun/leetcode-editor/master/doc/customConfig-100.gif" alt="demo" />
-			</p>
-		</div>
-		<br>
-		<div>
-			<h2>Configuration (configuration for first installation)</h2>
-			<br>
-			<p>
-				<img src="https://raw.githubusercontent.com/shuzijun/leetcode-editor/master/doc/config-3.0.png" alt="settings" />
-			</p>
-			<br>
-			<h3>Configuration path: File -> settings->tools->leetcode plugin</h3>
-			<br>
-			<ul>
-				<li>URL options: leetcode.com and leetcode-cn.com</li>
-				<li>Code Type: Java, Python, C++, Python3, C, C#, JavaScript, Ruby, Swift, Go, Scala, Kotlin, Rust, PHP</li>
-				<li> Login Name: Login Username</li>
-				<li> Password: Login password</li>
-				<li>Temp File Path: Temporary file storage catalogue</li>
-				<li>proxy(HTTP Proxy): HTTP Proxy,config path:`File` -> `settings`->`Appearance & Behavior`->`System Settings`->`HTTP Proxy`</li>
-                <li>Custom code template: Custom code template ([details](https://github.com/shuzijun/leetcode-editor/blob/master/doc/CustomCode.md))([demo](https://github.com/shuzijun/leetcode-question))</li>
+    <description><![CDATA[]]></description>
 
-			</ul>
-		</div>
-		<br>
-		<br>
-		<div>
-			<h2>Window (Icon in the lower right corner of the main window)</h2>
-			<br>
-			<p >
-				<img src="https://raw.githubusercontent.com/shuzijun/leetcode-editor/master/doc/window-3.0.png" alt="window" />
-			</p>
-			<br>
-			<h3>Toolbar:</h3>
-			<ul>
-				<li>Login: The login accounts of the two websites are not interoperable and the corresponding users need to be
-					configured when switching websites.</li>
-				<li>Logout: Exit the current account, if you encounter a login error, try to exit first</li>
-				<li>Refresh: You can also refresh and load questions if you are not logged in, but you cannot submit it.</li>
-				<li>Find: Input the content and press Enter to search , press again to search for the next one. It can only
-					search under the question bank node.</li>
-				<li>Collapse: Collapse all nodes.</li>
-				<li> Configuration: Quick jump to the configuration page</li>
-				<li> Clear: Clean up the files in the configured cache directories. The cache directories of the two websites
-					are different and only the current configured websites are cleaned up. Carefully clean up cases without
-					submitting.</li>
-			</ul>
-			<br>
-			<h3>Tree:</h3>
-			<ul>
-				<li>Questions: All questions</li>
-				<li>Difficulty: Classification of difficulties</li>
-				<li>Tags: Classification of types</li>
-				<li>Explore: Explore content, only contains titles of the questions, exclusive content that needs to pay ; some
-					questions are loaded in order</li>
-				<li>Color: The color represents the difficulty of the question</li>
-				<li>Symbol: The symbols of “√” and “?” represent the status of the current questions, and explores with the
-					beginning of “$” needs to pay or that cannot be viewed due to other causes.</li>
-			</ul>
-		</div>
-		<br>
-		<br>
-		<div>
-			<h2> Menu:</h2>
-			<br>
-			<p >
-				<img src="https://raw.githubusercontent.com/shuzijun/leetcode-editor/master/doc/menu-3.0.png" alt="menu" />
-			</p>
-			<br>
-			<h3>Menu (right-click on the questions)</h3>
-			<ul>
-				<li>Open question: Open the question or double click on the question</li>
-				<li>Submit: Submit the question</li>
-				<li>Submissions: View the submission record, select the record details in the pop-up window (Show detail)</li>
-				<li>Run Code: Run the code, the test case for the question is used by default</li>
-				<li>Test case: Customize test cases</li>
-				<li>favorite:Add or remove favorite</li>
-				<li>Clear cache: Clean up the current questionL</li>
-			</ul>
-		</div>
-    ]]></description>
-
-    <change-notes><![CDATA[
-         <ul>
-            <li>v7.0<br>
-               1.全新的阅读体验.<br>
-            </li>
-            <li>v7.0<br>
-               1.New reading experience.<br>
-            </li>
-        </ul>
-    ]]>
+    <change-notes>
     </change-notes>
 
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/build_number_ranges.html for description -->
@@ -134,20 +16,24 @@
          on how to target different products -->
     <!-- uncomment to enable plugin in all products -->
     <depends>com.intellij.modules.lang</depends>
-      
+
     <application-components>
-            <!-- Add your application components here -->
+
     </application-components>
 
     <extensions defaultExtensionNs="com.intellij">
-        <!--    <postStartupActivity  implementation = "com.shuzijun.leetcode.plugin.listener.RegisterPluginInstallerStateListener"></postStartupActivity>-->
+        <postStartupActivity  implementation = "com.shuzijun.leetcode.plugin.listener.RegisterPluginInstallerStateListener"></postStartupActivity>
         <errorHandler implementation="com.shuzijun.leetcode.plugin.listener.ErrorReportHandler"/>
-        <toolWindow id="leetcode" secondary="true" icon="LeetCodeEditorIcons.LEETCODE_TOOL_WINDOW" anchor="right"
+        <toolWindow id="Leetcode" secondary="false" icon="LeetCodeEditorIcons.LEETCODE_TOOL_WINDOW" anchor="left"
                     factoryClass="com.shuzijun.leetcode.plugin.window.WindowFactory" />
+        <toolWindow id="Leetcode Console" secondary="false" icon="LeetCodeEditorIcons.LEETCODE_TOOL_WINDOW" anchor="bottom"
+                    factoryClass="com.shuzijun.leetcode.plugin.window.ConsoleWindowFactory" />
         <applicationService serviceInterface="com.shuzijun.leetcode.plugin.setting.PersistentConfig"
                             serviceImplementation="com.shuzijun.leetcode.plugin.setting.PersistentConfig"/>
         <projectService serviceInterface="com.shuzijun.leetcode.plugin.setting.ProjectConfig"
                         serviceImplementation="com.shuzijun.leetcode.plugin.setting.ProjectConfig"/>
+        <projectService serviceInterface="com.shuzijun.leetcode.plugin.setting.StatisticsData"
+                        serviceImplementation="com.shuzijun.leetcode.plugin.setting.StatisticsData"/>
         <applicationConfigurable groupId="tools" displayName="LeetCode Plugin" id="leetcode.id"
                                  instance="com.shuzijun.leetcode.plugin.setting.SettingConfigurable"/>
         <statusBarWidgetFactory implementation="com.shuzijun.leetcode.plugin.timer.TimerStatusBarWidgetProvider"/>
@@ -166,7 +52,11 @@
         <lang.foldingBuilder language="Shell Script" implementationClass="com.shuzijun.leetcode.plugin.language.ScopeFoldingBuilder"/>
         <lang.foldingBuilder language="GenericSQL" implementationClass="com.shuzijun.leetcode.plugin.language.ScopeFoldingBuilder"/>
         <lang.foldingBuilder language="TypeScript" implementationClass="com.shuzijun.leetcode.plugin.language.ScopeFoldingBuilder"/>
+
         <fileEditorProvider implementation="com.shuzijun.leetcode.plugin.editor.QuestionEditorProvider"/>
+        <fileIconPatcher implementation="com.shuzijun.leetcode.plugin.editor.QuestionEditorIconProvider" order="last"/>
+        <editorTabTitleProvider implementation="com.shuzijun.leetcode.plugin.editor.QuestionEditorTabTitleProvider"  order="last"/>
+
         <fileType name="lcvDoc" extensions="lcv;" fileNames=".lcv" language="lcvDoc"
                   implementationClass="com.shuzijun.leetcode.plugin.editor.LCVFileType" fieldName="INSTANCE"/>
         <fileEditorProvider implementation="com.shuzijun.leetcode.plugin.editor.LCVProvider"/>
@@ -197,12 +87,13 @@
         <action id="leetcode.ClearAllAction" class="com.shuzijun.leetcode.plugin.actions.toolbar.ClearAllAction"
                 text="Clear cache" description="Clear cache" icon="LeetCodeEditorIcons.CLEAR">
         </action>
-        <action id="leetcode.CollapseAction" class="com.shuzijun.leetcode.plugin.actions.toolbar.CollapseAction"
-                text="Collapse All" description="Collapse All" icon="LeetCodeEditorIcons.COLLAPSE">
-        </action>
 
         <action id="leetcode.HelpAction" class="com.shuzijun.leetcode.plugin.actions.toolbar.HelpAction"
                 text="Help" description="Help" icon="LeetCodeEditorIcons.HELP">
+        </action>
+
+        <action id="leetcode.ToggleListAction" class="com.shuzijun.leetcode.plugin.actions.toolbar.ToggleListAction"
+                text="Toggle List" description="Toggle List" icon="LeetCodeEditorIcons.TOGGLE">
         </action>
 
         <action id="leetcode.OpenAction" class="com.shuzijun.leetcode.plugin.actions.tree.OpenAction"
@@ -254,9 +145,9 @@
             <reference id="leetcode.DaliyAction"/>
             <reference id="leetcode.FindAction"/>
             <reference id="leetcode.positionAction"/>
-            <reference id="leetcode.CollapseAction"/>
             <reference id="leetcode.ProgressAction"/>
             <separator/>
+            <reference id="leetcode.ToggleListAction"/>
             <reference id="leetcode.ConfigAction"/>
             <reference id="leetcode.ClearAllAction"/>
             <reference id="leetcode.HelpAction"/>
@@ -283,13 +174,13 @@
             <group id="leetcode.note" popup="true" text="note" description="note" icon="LeetCodeEditorIcons.NOTE">
                 <action id="leetcode.ShowNote"
                         class="com.shuzijun.leetcode.plugin.actions.tree.ShowNoteAction"
-                        text="ShowNote" description="Show Note">
+                        text="ShowNote" description="Show Note" icon="LeetCodeEditorIcons.SHOW">
                 </action>
                 <action id="leetcode.PullNote" class="com.shuzijun.leetcode.plugin.actions.tree.PullNoteAction"
-                        text="PullNote" description="Pull Note">
+                        text="PullNote" description="Pull Note" icon="LeetCodeEditorIcons.PULL">
                 </action>
                 <action id="leetcode.PushNote" class="com.shuzijun.leetcode.plugin.actions.tree.PushNoteAction"
-                        text="PushNote" description="Push Note">
+                        text="PushNote" description="Push Note" icon="LeetCodeEditorIcons.PUSH">
                 </action>
             </group>
             <separator/>
@@ -313,14 +204,14 @@
             <group id="leetcode.find.Category" class="com.shuzijun.leetcode.plugin.actions.toolbar.FindActionGroup"
                    popup="true" text="Category" description="Category">
             </group>
+            <group id="leetcode.find.Lists" class="com.shuzijun.leetcode.plugin.actions.toolbar.FindActionGroup" popup="true"
+                   text="Lists" description="Lists">
+            </group>
             <group id="leetcode.find.Difficulty" class="com.shuzijun.leetcode.plugin.actions.toolbar.FindActionGroup"
                    popup="true" text="Difficulty" description="Difficulty">
             </group>
             <group id="leetcode.find.Status" class="com.shuzijun.leetcode.plugin.actions.toolbar.FindActionGroup" popup="true"
                    text="Status" description="Status">
-            </group>
-            <group id="leetcode.find.Lists" class="com.shuzijun.leetcode.plugin.actions.toolbar.FindActionGroup" popup="true"
-                   text="Lists" description="Lists">
             </group>
             <group id="leetcode.find.Tags" class="com.shuzijun.leetcode.plugin.actions.toolbar.FindActionGroup" popup="true"
                    text="Tags" description="Tags">
@@ -328,9 +219,6 @@
             <separator/>
             <action id="leetcode.find.Clear" class="com.shuzijun.leetcode.plugin.actions.toolbar.FindClearAction"
                     text="Clear find" description="Clear find " icon="LeetCodeEditorIcons.CLEAN">
-            </action>
-            <action id="leetcode.find.Config" class="com.shuzijun.leetcode.plugin.actions.toolbar.FindConfigAction"
-                    text="∩" description="find intersection">
             </action>
         </group>
 
@@ -364,19 +252,16 @@
             </action>
             <separator/>
             <reference id="leetcode.positionAction"/>
-            <group id="leetcode.editor.note" popup="true" text="note" description="note"
-                   icon="LeetCodeEditorIcons.NOTE">
+            <group id="leetcode.editor.note" popup="true" text="note" description="note" icon="LeetCodeEditorIcons.NOTE">
                 <action id="leetcode.editor.ShowNote"
                         class="com.shuzijun.leetcode.plugin.actions.editor.ShowNoteAction"
-                        text="ShowNote" description="Show Note">
+                        text="ShowNote" description="Show Note" icon="LeetCodeEditorIcons.SHOW">
                 </action>
-                <action id="leetcode.editor.PullNote"
-                        class="com.shuzijun.leetcode.plugin.actions.editor.PullNoteAction"
-                        text="PullNote" description="Pull Note">
+                <action id="leetcode.editor.PullNote" class="com.shuzijun.leetcode.plugin.actions.editor.PullNoteAction"
+                        text="PullNote" description="Pull Note" icon="LeetCodeEditorIcons.PULL">
                 </action>
-                <action id="leetcode.editor.PushNote"
-                        class="com.shuzijun.leetcode.plugin.actions.editor.PushNoteAction"
-                        text="PushNote" description="Push Note">
+                <action id="leetcode.editor.PushNote" class="com.shuzijun.leetcode.plugin.actions.editor.PushNoteAction"
+                        text="PushNote" description="Push Note" icon="LeetCodeEditorIcons.PUSH">
                 </action>
             </group>
             <group id="leetcode.editor.timer" popup="true" text="Timer" description="timer(editor)" icon="LeetCodeEditorIcons.TIME">
@@ -404,10 +289,6 @@
                     class="com.shuzijun.leetcode.plugin.actions.toolbar.SortAction"
                     text="Sort:" description="label"/>
             <separator/>
-            <action id="leetcode.sort.SortById"
-                    class="com.shuzijun.leetcode.plugin.actions.toolbar.SortAction"
-                    text="Id" description="Sort By Id" icon="LeetCodeEditorIcons.SORT_ASC"/>
-
             <action id="leetcode.sort.SortByTitle" class="com.shuzijun.leetcode.plugin.actions.toolbar.SortAction"
                     text="Title" description="Sort By Title" icon="LeetCodeEditorIcons.SORT_ASC"/>
 
@@ -426,6 +307,113 @@
                     class="com.shuzijun.leetcode.plugin.actions.toolbar.SortAction"
                     text="Frequency" description="Sort By Frequency" icon="LeetCodeEditorIcons.SORT_ASC"/>
         </group>
+
+        <action id="leetcode.PageSize" class="com.shuzijun.leetcode.plugin.actions.toolbar.page.PageSizeBoxAction"
+                text="Page Size" description="Page Size">
+        </action>
+        <action id="leetcode.PageList" class="com.shuzijun.leetcode.plugin.actions.toolbar.page.PageBoxAction"
+                text="PageList" description="Page">
+        </action>
+        <action id="leetcode.PreviousPage" class="com.shuzijun.leetcode.plugin.actions.toolbar.page.PreviousAction"
+                text="Previous" description="Previous Page">
+        </action>
+        <action id="leetcode.NextPage" class="com.shuzijun.leetcode.plugin.actions.toolbar.page.NextAction"
+                text="Next" description="Next Page">
+        </action>
+        <action id="leetcode.GoPage" class="com.shuzijun.leetcode.plugin.actions.toolbar.page.GoAction"
+                text="Go" description="Go Page">
+        </action>
+
+        <group id="leetcode.codetop.NavigatorActionsToolbar">
+            <reference id="leetcode.LoginAction"/>
+            <reference id="leetcode.LogoutAction"/>
+            <separator/>
+            <action id="leetcode.codetop.RefreshAction" class="com.shuzijun.leetcode.plugin.actions.toolbar.RefreshAction"
+                    text="Refresh question" description="Refreshquestion" icon="LeetCodeEditorIcons.REFRESH">
+            </action>
+            <action id="leetcode.codetop.FindAction" class="com.shuzijun.leetcode.plugin.actions.toolbar.FindAction"
+                    text="Find question" description="Refreshquestion" icon="LeetCodeEditorIcons.FIND">
+            </action>
+            <action id="leetcode.codetop.ShareAction" class="com.shuzijun.leetcode.plugin.actions.toolbar.ShareAction"
+                    text="Share" description="Share" icon="LeetCodeEditorIcons.SHARE">
+            </action>
+            <separator/>
+            <reference id="leetcode.ToggleListAction"/>
+            <reference id="leetcode.ConfigAction"/>
+            <reference id="leetcode.ClearAllAction"/>
+            <reference id="leetcode.HelpAction"/>
+        </group>
+
+        <group id="leetcode.codetop.find.Toolbar" popup="true" text="Status" description="Status">
+            <group id="leetcode.codetop.find.Difficulty" class="com.shuzijun.leetcode.plugin.actions.toolbar.FindActionGroup"
+                   popup="true" text="Difficulty" description="Difficulty">
+            </group>
+            <group id="leetcode.codetop.find.Tags" class="com.shuzijun.leetcode.plugin.actions.toolbar.FindActionGroup" popup="true"
+                   text="Tags" description="Tags">
+            </group>
+            <group id="leetcode.codetop.find.Company" class="com.shuzijun.leetcode.plugin.actions.toolbar.FindActionGroup"
+                   popup="true" text="Company" description="Company">
+            </group>
+            <separator/>
+            <action id="leetcode.codetop.find.Clear" class="com.shuzijun.leetcode.plugin.actions.toolbar.FindClearAction"
+                    text="Clear find" description="Clear find " icon="LeetCodeEditorIcons.CLEAN">
+            </action>
+        </group>
+
+        <group id="leetcode.codetop.find.SortToolbar" popup="true" text="Sort">
+            <action id="leetcode.codetop.sort.Sort"
+                    class="com.shuzijun.leetcode.plugin.actions.toolbar.SortAction"
+                    text="Sort:" description="label"/>
+            <separator/>
+            <action id="leetcode.codetop.sort.CodeTopSortByTitle" class="com.shuzijun.leetcode.plugin.actions.toolbar.SortAction"
+                    text="Title" description="Sort By Title" icon="LeetCodeEditorIcons.SORT_ASC"/>
+
+            <action id="leetcode.codetop.sort.CodeTopSortByTime" class="com.shuzijun.leetcode.plugin.actions.toolbar.SortAction"
+                    text="Time" description="Sort By Time" icon="LeetCodeEditorIcons.SORT_ASC"/>
+
+            <action id="leetcode.codetop.sort.CodeTopSortByFrequency" class="com.shuzijun.leetcode.plugin.actions.toolbar.SortAction"
+                    text="Frequency" description="Sort By Frequency" icon="LeetCodeEditorIcons.SORT_ASC"/>
+        </group>
+
+        <group id="leetcode.all.find.Toolbar" popup="true" text="Status" description="Status">
+            <group id="leetcode.all.find.Category" class="com.shuzijun.leetcode.plugin.actions.toolbar.FindActionGroup"
+                   popup="true" text="Category" description="Category">
+            </group>
+            <group id="leetcode.all.find.Lists" class="com.shuzijun.leetcode.plugin.actions.toolbar.FindActionGroup" popup="true"
+                   text="Lists" description="Lists">
+            </group>
+            <group id="leetcode.all.find.Difficulty" class="com.shuzijun.leetcode.plugin.actions.toolbar.FindActionGroup"
+                   popup="true" text="Difficulty" description="Difficulty">
+            </group>
+            <group id="leetcode.all.find.Status" class="com.shuzijun.leetcode.plugin.actions.toolbar.FindActionGroup" popup="true"
+                   text="Status" description="Status">
+            </group>
+            <group id="leetcode.all.find.Tags" class="com.shuzijun.leetcode.plugin.actions.toolbar.FindActionGroup" popup="true"
+                   text="Tags" description="Tags">
+            </group>
+            <separator/>
+            <action id="leetcode.all.find.Clear" class="com.shuzijun.leetcode.plugin.actions.toolbar.FindClearAction"
+                    text="Clear find" description="Clear find " icon="LeetCodeEditorIcons.CLEAN">
+            </action>
+        </group>
+
+        <group id="leetcode.all.find.SortToolbar" popup="true" text="Sort">
+            <action id="leetcode.all.codetop.sort.Sort"
+                    class="com.shuzijun.leetcode.plugin.actions.toolbar.SortAction"
+                    text="Sort:" description="label"/>
+            <separator/>
+            <action id="leetcode.all.sort.SortByTitle" class="com.shuzijun.leetcode.plugin.actions.toolbar.SortAction"
+                    text="Title" description="Sort By Title" icon="LeetCodeEditorIcons.SORT_ASC"/>
+
+            <action id="leetcode.all.sort.SortByDifficulty"
+                    class="com.shuzijun.leetcode.plugin.actions.toolbar.SortAction"
+                    text="Difficulty" description="Sort By Difficulty" icon="LeetCodeEditorIcons.SORT_ASC"/>
+
+            <action id="leetcode.all.sort.SortByStates"
+                    class="com.shuzijun.leetcode.plugin.actions.toolbar.SortAction"
+                    text="States" description="Sort By States" icon="LeetCodeEditorIcons.SORT_ASC"/>
+        </group>
+
     </actions>
 
 

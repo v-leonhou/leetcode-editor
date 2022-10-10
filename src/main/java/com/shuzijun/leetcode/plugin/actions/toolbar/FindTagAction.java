@@ -5,7 +5,8 @@ import com.intellij.openapi.actionSystem.ToggleAction;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.progress.Task;
-import com.shuzijun.leetcode.plugin.manager.ViewManager;
+import com.intellij.openapi.project.DumbAware;
+import com.shuzijun.leetcode.plugin.manager.NavigatorAction;
 import com.shuzijun.leetcode.plugin.model.PluginConstant;
 import com.shuzijun.leetcode.plugin.model.Tag;
 import com.shuzijun.leetcode.plugin.utils.DataKeys;
@@ -13,26 +14,27 @@ import com.shuzijun.leetcode.plugin.window.WindowFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
+import java.util.List;
 
 /**
  * @author shuzijun
  */
-public class FindTagAction extends ToggleAction {
+public class FindTagAction extends ToggleAction implements DumbAware {
 
     private Tag tag;
 
-    private boolean againLoad = false;
+    private String filterKey;
 
-    public FindTagAction(@Nullable String text, Tag tag) {
+    private boolean onlyOne;
+
+    private List<Tag> typeTags;
+
+    public FindTagAction(@Nullable String text, Tag tag, List<Tag> typeTags, boolean onlyOne, String filterKey) {
         super(text);
         this.tag = tag;
-    }
-
-    public FindTagAction(@Nullable String text, Tag tag, boolean againLoad) {
-        super(text);
-        this.tag = tag;
-        this.againLoad = againLoad;
+        this.typeTags = typeTags;
+        this.onlyOne = onlyOne;
+        this.filterKey = filterKey;
     }
 
     @Override
@@ -42,27 +44,21 @@ public class FindTagAction extends ToggleAction {
 
     @Override
     public void setSelected(AnActionEvent anActionEvent, boolean b) {
+        if (onlyOne && b) {
+            typeTags.forEach(tag -> tag.setSelect(false));
+        }
         tag.setSelect(b);
-        JTree tree = WindowFactory.getDataContext(anActionEvent.getProject()).getData(DataKeys.LEETCODE_PROJECTS_TREE);
-        if (tree == null) {
+
+        NavigatorAction navigatorAction = WindowFactory.getDataContext(anActionEvent.getProject()).getData(DataKeys.LEETCODE_PROJECTS_NAVIGATORACTION);
+        if (navigatorAction == null) {
             return;
         }
-        if (againLoad) {
-            ProgressManager.getInstance().run(new Task.Backgroundable(anActionEvent.getProject(), PluginConstant.PLUGIN_NAME+ "." + tag.getName(), false) {
-                @Override
-                public void run(@NotNull ProgressIndicator progressIndicator) {
-                    if (b) {
-                        ViewManager.loadServiceData(tree, anActionEvent.getProject(), tag.getSlug());
-                    } else {
-                        ViewManager.loadServiceData(tree, anActionEvent.getProject());
-                    }
-
-                }
-            });
-
-        } else {
-            ViewManager.update(tree);
-        }
+        ProgressManager.getInstance().run(new Task.Backgroundable(anActionEvent.getProject(), PluginConstant.PLUGIN_NAME + "." + tag.getName(), false) {
+            @Override
+            public void run(@NotNull ProgressIndicator progressIndicator) {
+                navigatorAction.findChange(filterKey, b, tag);
+            }
+        });
     }
 
 

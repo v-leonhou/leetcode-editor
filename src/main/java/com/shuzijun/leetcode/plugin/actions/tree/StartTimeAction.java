@@ -6,14 +6,12 @@ import com.shuzijun.leetcode.plugin.model.Config;
 import com.shuzijun.leetcode.plugin.model.Question;
 import com.shuzijun.leetcode.plugin.timer.TimerBarWidget;
 
-import javax.swing.*;
-
 /**
  * @author shuzijun
  */
-public class StartTimeAction extends  AbstractTreeAction {
+public class StartTimeAction extends AbstractTreeAction {
     @Override
-    public void actionPerformed(AnActionEvent anActionEvent, Config config, JTree tree, Question question) {
+    public void actionPerformed(AnActionEvent anActionEvent, Config config, Question question) {
         TimerBarWidget timerBarWidget = (TimerBarWidget) WindowManager.getInstance().getStatusBar(anActionEvent.getProject()).getWidget(TimerBarWidget.ID);
         if (timerBarWidget != null) {
             timerBarWidget.startTimer(question.getTitle());

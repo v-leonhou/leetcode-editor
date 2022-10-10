@@ -1,5 +1,6 @@
 package com.shuzijun.leetcode.plugin.utils;
 
+import com.shuzijun.leetcode.plugin.model.Config;
 import com.shuzijun.leetcode.plugin.setting.PersistentConfig;
 import org.apache.commons.lang.StringUtils;
 
@@ -9,7 +10,8 @@ import org.apache.commons.lang.StringUtils;
 public class URLUtils {
 
     public static final String leetcode = "leetcode.com";
-    public static final String leetcodecn = "leetcode-cn.com";
+    public static final String leetcodecn = "leetcode.cn";
+    public static final String leetcodecnOld = "leetcode-cn.com";
 
     private static String leetcodeUrl = "https://";
     private static String leetcodeLogin = "/accounts/login/";
@@ -25,13 +27,29 @@ public class URLUtils {
     private static String leetcodeProgress = "/api/progress/all/";
     private static String leetcodeSession = "/session/";
     private static String leetcodeCardInfo = "/problems/api/card-info/";
+    private static String leetcodeRandomOneQuestion = "/problems/random-one-question/all";
 
     public static String getLeetcodeHost() {
-        String host = PersistentConfig.getInstance().getConfig().getUrl();
+        Config config = PersistentConfig.getInstance().getInitConfig();
+        if (config == null) {
+            return leetcode;
+        }
+        String host = config.getUrl();
         if (StringUtils.isBlank(host)) {
             return leetcode;
         }
         return host;
+    }
+
+    public static boolean equalsHost(String host) {
+        String thisHost = getLeetcodeHost();
+        if(thisHost.equals(host)){
+            return true;
+        }else if(thisHost.equals(leetcodecn) && leetcodecnOld.equals(host)){
+            return true;
+        }else {
+            return false;
+        }
     }
 
     public static String getLeetcodeUrl() {
@@ -78,15 +96,15 @@ public class URLUtils {
         return getLeetcodeUrl() + leetcodeVerify;
     }
 
-    public static String getLeetcodeProgress(){
+    public static String getLeetcodeProgress() {
         return getLeetcodeUrl() + leetcodeProgress;
     }
 
-    public static String getLeetcodeSession(){
+    public static String getLeetcodeSession() {
         return getLeetcodeUrl() + leetcodeSession;
     }
 
-    public static String getLeetcodeCardInfo(){
+    public static String getLeetcodeCardInfo() {
         return getLeetcodeUrl() + leetcodeCardInfo;
     }
 
@@ -114,4 +132,7 @@ public class URLUtils {
         }
     }
 
+    public static String getLeetcodeRandomOneQuestion() {
+        return getLeetcodeUrl() + leetcodeRandomOneQuestion;
+    }
 }

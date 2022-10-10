@@ -1,9 +1,9 @@
 package com.shuzijun.leetcode.plugin.actions.toolbar;
 
-import com.intellij.openapi.actionSystem.ActionToolbar;
 import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.project.DumbAware;
 import com.shuzijun.leetcode.plugin.actions.AbstractAction;
-import com.shuzijun.leetcode.plugin.manager.ViewManager;
+import com.shuzijun.leetcode.plugin.manager.NavigatorAction;
 import com.shuzijun.leetcode.plugin.model.Config;
 import com.shuzijun.leetcode.plugin.model.Constant;
 import com.shuzijun.leetcode.plugin.model.PluginConstant;
@@ -13,12 +13,10 @@ import com.shuzijun.leetcode.plugin.window.WindowFactory;
 import icons.LeetCodeEditorIcons;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.*;
-
 /**
  * @author shuzijun
  */
-public class SortAction extends AbstractAction {
+public class SortAction extends AbstractAction implements DumbAware {
 
     @Override
     public boolean displayTextInToolbar() {
@@ -27,11 +25,11 @@ public class SortAction extends AbstractAction {
 
     @Override
     public void update(@NotNull AnActionEvent e) {
-        Sort sort = getSort(e);
+        NavigatorAction navigatorAction = WindowFactory.getDataContext(e.getProject()).getData(DataKeys.LEETCODE_PROJECTS_NAVIGATORACTION);
+        Sort sort = getSort(e, navigatorAction);
         if (sort == null) {
             return;
         }
-        ActionToolbar sortToolbar = e.getDataContext().getData(DataKeys.LEETCODE_TOOLBAR_SORT);
         if (sort.getType() == Constant.SORT_ASC) {
             e.getPresentation().setIcon(LeetCodeEditorIcons.SORT_ASC);
         } else if (sort.getType() == Constant.SORT_DESC) {
@@ -39,32 +37,32 @@ public class SortAction extends AbstractAction {
         } else {
             e.getPresentation().setIcon(null);
         }
-        if (sortToolbar != null && sortToolbar.getComponent() != null) {
-            sortToolbar.getComponent().updateUI();
-        }
+        navigatorAction.updateUI();
         super.update(e);
 
     }
 
     @Override
     public void actionPerformed(AnActionEvent anActionEvent, Config config) {
-        JTree tree = WindowFactory.getDataContext(anActionEvent.getProject()).getData(DataKeys.LEETCODE_PROJECTS_TREE);
-        if (tree == null || ViewManager.getFilter(Constant.FIND_TYPE_DIFFICULTY) == null) {
+        NavigatorAction navigatorAction = WindowFactory.getDataContext(anActionEvent.getProject()).getData(DataKeys.LEETCODE_PROJECTS_NAVIGATORACTION);
+        if (navigatorAction == null) {
             return;
         }
-        Sort sort = getSort(anActionEvent);
+        Sort sort = getSort(anActionEvent, navigatorAction);
         if (sort == null) {
             return;
         }
-        ViewManager.operationType(getKey(anActionEvent));
-        ViewManager.update(tree);
+        navigatorAction.getFind().operationType(getKey(anActionEvent));
+        navigatorAction.sort(sort);
     }
 
-    private Sort getSort(AnActionEvent anActionEvent) {
-        return ViewManager.getSort(getKey(anActionEvent));
+    private Sort getSort(AnActionEvent anActionEvent, NavigatorAction navigatorAction) {
+        return navigatorAction.getFind().getSort(getKey(anActionEvent));
     }
 
-    private String getKey(AnActionEvent anActionEvent){
-        return anActionEvent.getActionManager().getId(this).replace(PluginConstant.LEETCODE_SORT_PREFIX,"");
+    private String getKey(AnActionEvent anActionEvent) {
+        return anActionEvent.getActionManager().getId(this).replace(PluginConstant.LEETCODE_SORT_PREFIX, "")
+                .replace(PluginConstant.LEETCODE_CODETOP_SORT_PREFIX, "")
+                .replace(PluginConstant.LEETCODE_ALL_SORT_PREFIX, "");
     }
 }
